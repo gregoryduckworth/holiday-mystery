@@ -1,4 +1,5 @@
 import { createOpenAIClient } from "./openaiClient";
+import { fetchWikiSummaryByTitle } from "./lib/wiki";
 import type { MysteryConfig, MysteryScriptResult } from "./types";
 
 export async function generateMysteryScript(
@@ -20,10 +21,36 @@ export async function generateMysteryScript(
     )
     .join("\n");
 
+  const locationHint = config.location
+    ? `Location for the story setting: ${config.location}
+
+Location usage rules:
+- Clearly set the mystery in or near this location.
+- Use local-sounding details: weather, typical holiday decorations, foods, or traditions that could plausibly match this place.
+- You may invent cosy, fictional local events (like a lights festival or holiday fair) that fit the tone.
+- You may invent place names (streets, parks, squares, or landmarks) that *sound* right for this location.
+- Avoid real-world tragedies, politics, actual crimes, or controversial news.
+- Keep all references light, cosy, playful, and family-friendly.`
+    : `No specific location provided. Choose a generic, cosy setting that fits the holiday and tone.`;
+
+  // Try to enrich the location with a short Wikipedia summary if we have a place name.
+  let wikiLocationNote = "";
+  if (config.location) {
+    try {
+      const wiki = await fetchWikiSummaryByTitle(config.location);
+      if (wiki && wiki.extract) {
+        const oneLine = wiki.extract.split(". ").slice(0, 4).join(". ");
+        wikiLocationNote = `\n\nLocation note (from Wikipedia): ${oneLine}.`;
+      }
+    } catch (err) {
+      console.warn("[generateMysteryScript] Wiki enrichment failed:", err);
+    }
+  }
+
   const system =
-    "You are an expert writer of fun, family-friendly mystery party games. " +
+    "You are an expert writer of fun mystery party games. " +
     "You always create clear scripts that can be read aloud by children and adults. " +
-    "Use short sentences, easy words, and avoid anything scary or violent.";
+    "Use short sentences, easy words, and avoid anything scary or violent if children are playing.";
 
   const userPrompt = `Create a holiday mystery party game in English with the following requirements:
 
@@ -33,6 +60,9 @@ Number of rounds: ${config.rounds}
 
 Players (create one fictional character per listed player):
 ${playersDescription}
+
+${locationHint}
+${wikiLocationNote}
 
 Additional notes from the organiser:
 ${config.settingNotes || "None provided."}

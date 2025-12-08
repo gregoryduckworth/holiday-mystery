@@ -6,13 +6,17 @@ import type {
   HolidayOption,
   CharacterScript,
 } from "./types";
+import { HolidayOptions } from "./types";
 import jsPDF from "jspdf";
 import { generateMysteryScript } from "./generateMystery";
+import { fetchWikiSummaryByTitle, type WikiSummary } from "./lib/wiki";
+import LocationAutocomplete from "./components/LocationAutocomplete";
 
 const defaultConfig: MysteryConfig = {
   holiday: "Christmas",
   customHoliday: "",
   rounds: 3,
+  location: "",
   settingNotes: "",
   tone: "light",
   players: [
@@ -30,6 +34,9 @@ function App() {
   const [result, setResult] = useState<
     import("./types").MysteryScriptResult | null
   >(null);
+  const [wikiPreview, setWikiPreview] = useState<WikiSummary | null>(null);
+  const [wikiLoading, setWikiLoading] = useState(false);
+  const [wikiError, setWikiError] = useState<string | null>(null);
 
   const updatePlayer = (id: number, field: keyof Player, value: string) => {
     setConfig((prev) => ({
@@ -136,8 +143,37 @@ function App() {
     }
   };
 
+  const fetchWikiPreview = async (title?: string) => {
+    const t = title ?? config.location;
+    if (!t || !config.enableWikiEnrichment) {
+      setWikiPreview(null);
+      setWikiError(null);
+      return;
+    }
+    setWikiLoading(true);
+    setWikiError(null);
+    try {
+      const s = await fetchWikiSummaryByTitle(t);
+      setWikiPreview(s);
+    } catch (err) {
+      console.warn("Wiki preview failed", err);
+      setWikiError(err instanceof Error ? err.message : String(err));
+      setWikiPreview(null);
+    } finally {
+      setWikiLoading(false);
+    }
+  };
+
   return (
     <div className="app-root">
+      {isGenerating && (
+        <div className="fullpage-loader" role="status" aria-live="polite">
+          <div className="loader-box">
+            <div className="spinner" aria-hidden="true" />
+            <div className="loader-message">Generating your mystery…</div>
+          </div>
+        </div>
+      )}
       <header className="app-header">
         <h1>Holiday Mystery Generator</h1>
         <p>
@@ -162,11 +198,11 @@ function App() {
                   }))
                 }
               >
-                <option value="Christmas">Christmas</option>
-                <option value="New Year">New Year</option>
-                <option value="Hannukah">Hannukah</option>
-                <option value="Kwanzaa">Kwanzaa</option>
-                <option value="Winter Solstice">Winter Solstice</option>
+                {HolidayOptions.map((h) => (
+                  <option key={h} value={h}>
+                    {h}
+                  </option>
+                ))}
               </select>
             </label>
 
@@ -204,6 +240,41 @@ function App() {
             </label>
 
             <label className="field">
+              <span>Optional: city or location for the story</span>
+              <LocationAutocomplete
+                value={config.location}
+                onChange={(v) =>
+                  setConfig((prev) => ({
+                    ...prev,
+                    location: v,
+                  }))
+                }
+                onSelect={(place) => {
+                  // derive a concise town name from the Nominatim response
+                  const addr = place.address || ({} as Record<string, unknown>);
+                  const townName =
+                    (addr["town"] as string | undefined) ||
+                    (addr["city"] as string | undefined) ||
+                    (addr["village"] as string | undefined) ||
+                    (addr["hamlet"] as string | undefined) ||
+                    (addr["municipality"] as string | undefined) ||
+                    (addr["county"] as string | undefined) ||
+                    (addr["state"] as string | undefined) ||
+                    (place.display_name || "").split(",")[0];
+
+                  setConfig((prev) => ({ ...prev, location: townName }));
+                  fetchWikiPreview(townName);
+                }}
+                placeholder="e.g. Edinburgh, Scotland or a snowy mountain village"
+                nominatimEmail="dev@local" // optional contact
+              />
+              <small className="hint">
+                Please don&apos;t include your full address just a city, region,
+                or type of place is perfect.
+              </small>
+            </label>
+
+            <label className="field">
               <span>Overall tone</span>
               <select
                 value={config.tone}
@@ -234,6 +305,27 @@ function App() {
                   }))
                 }
               />
+            </label>
+
+            <label className="field">
+              <span>
+                <input
+                  type="checkbox"
+                  checked={config.enableWikiEnrichment ?? true}
+                  onChange={(e) =>
+                    setConfig((prev) => ({
+                      ...prev,
+                      enableWikiEnrichment: e.target.checked,
+                    }))
+                  }
+                />
+                &nbsp;Enable Wikipedia enrichment and preview
+              </span>
+              <small className="hint">
+                When enabled, the app will fetch a short Wikipedia summary for
+                the provided location and include a short note in the generated
+                prompt. No API keys are required.
+              </small>
             </label>
           </section>
 
@@ -332,6 +424,61 @@ function App() {
             </button>
           </footer>
         </form>
+
+        <section className="panel">
+          <h2>Location preview</h2>
+          <p className="hint">
+            Preview the Wikipedia summary for the location.
+          </p>
+          <div className="wiki-preview">
+            {config.enableWikiEnrichment ? (
+              wikiLoading ? (
+                <p>Loading Wikipedia summary…</p>
+              ) : wikiError ? (
+                <div className="error-banner">{wikiError}</div>
+              ) : wikiPreview ? (
+                <div>
+                  <h3>{wikiPreview.title}</h3>
+                  <p>{wikiPreview.extract}</p>
+                  {wikiPreview.content_urls?.desktop?.page && (
+                    <a
+                      href={wikiPreview.content_urls.desktop.page}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Read on Wikipedia
+                    </a>
+                  )}
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => fetchWikiPreview()}
+                      className="secondary-button"
+                    >
+                      Refresh preview
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <p className="hint">
+                    No preview available. Enter a location and click "Refresh
+                    preview".
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => fetchWikiPreview()}
+                    className="secondary-button"
+                  >
+                    Refresh preview
+                  </button>
+                </div>
+              )
+            ) : (
+              <p className="hint">Wikipedia enrichment is disabled.</p>
+            )}
+          </div>
+        </section>
 
         {error && (
           <div className="error-banner">

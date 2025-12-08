@@ -1,11 +1,13 @@
-export type HolidayOption =
-  | "Christmas"
-  | "Halloween"
-  | "New Year"
-  | "Valentines Day"
-  | "Easter"
-  | "Birthday"
-  | "Other";
+export const HolidayOptions = [
+  "Christmas",
+  "New Year",
+  "Hannukah",
+  "Kwanzaa",
+  "Winter Solstice",
+  "Other",
+] as const;
+
+export type HolidayOption = (typeof HolidayOptions)[number];
 
 export interface Player {
   id: number;
@@ -17,6 +19,8 @@ export interface Player {
 export interface MysteryConfig {
   holiday: HolidayOption;
   customHoliday: string;
+  location: string;
+  enableWikiEnrichment?: boolean;
   rounds: number;
   settingNotes: string;
   tone: "light" | "mixed" | "serious";
