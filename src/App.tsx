@@ -1,5 +1,5 @@
 import "./index.css";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import type {
   MysteryConfig,
   Player,
@@ -8,7 +8,10 @@ import type {
 } from "./types";
 import { HolidayOptions } from "./types";
 import jsPDF from "jspdf";
-import { generateMysteryScript } from "./generateMystery";
+import {
+  generateMysteryScript,
+  estimatePromptTokenCount,
+} from "./generateMystery";
 import { fetchWikiSummaryByTitle, type WikiSummary } from "./lib/wiki";
 import getLocalEnrichment from "./lib/localEnrich";
 import LocationAutocomplete from "./components/LocationAutocomplete";
@@ -46,6 +49,14 @@ function App() {
   const [selectedPOIs, setSelectedPOIs] = useState<
     Array<{ name: string; type?: string; distanceMeters?: number }>
   >([]);
+  // Transient OpenAI API key entered by the user for this session. Not persisted.
+  const [openaiKey, setOpenaiKey] = useState<string>("");
+  const [showOpenaiKey, setShowOpenaiKey] = useState<boolean>(false);
+  const [selectedModel, setSelectedModel] = useState<string>("gpt-4.1-mini");
+  const envKeyPresent = Boolean(import.meta.env.VITE_OPENAI_API_KEY);
+  const tokenEstimate = useMemo(() => {
+    return estimatePromptTokenCount(config, selectedPOIs);
+  }, [config, selectedPOIs]);
 
   const updatePlayer = (id: number, field: keyof Player, value: string) => {
     setConfig((prev) => ({
@@ -131,14 +142,19 @@ function App() {
     doc.save(`${safeName}-script.pdf`);
   };
 
-  const handleGenerate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGenerate = async (e?: React.FormEvent) => {
+    if (e && typeof e.preventDefault === "function") e.preventDefault();
     setIsGenerating(true);
     setError(null);
     setResult(null);
 
     try {
-      const script = await generateMysteryScript(config, selectedPOIs);
+      const script = await generateMysteryScript(
+        config,
+        selectedPOIs,
+        openaiKey || undefined,
+        selectedModel
+      );
       setResult(script);
     } catch (err) {
       console.error(err);
@@ -212,6 +228,100 @@ function App() {
             mystery with scripted rounds and an in-character inspector.
           </p>
         </header>
+
+        {error && (
+          <div
+            className="error-banner"
+            style={{ marginTop: 8, marginBottom: 16 }}
+          >
+            <strong>Oops.</strong> {error}
+          </div>
+        )}
+
+        <section className="panel">
+          <div className="panel-header-row">
+            <h2>OpenAI key (optional)</h2>
+            <div>
+              <div className={`api-key-status pill`} aria-hidden>
+                {openaiKey
+                  ? "Using provided key"
+                  : envKeyPresent
+                  ? "Using environment key"
+                  : "No API key available"}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="field">
+              <span>Paste an OpenAI API key for this session</span>
+
+              <div style={{ width: "100%" }}>
+                <div className="api-key-input">
+                  <input
+                    type={showOpenaiKey ? "text" : "password"}
+                    value={openaiKey}
+                    onChange={(e) => setOpenaiKey(e.target.value)}
+                    placeholder="sk-... (not stored)"
+                    aria-label="OpenAI API key"
+                  />
+                </div>
+
+                <div>
+                  <label className="field">
+                    <span>Model</span>
+                    <select
+                      value={selectedModel}
+                      onChange={(e) => setSelectedModel(e.target.value)}
+                      title={
+                        "Model differences: gpt-4.1-mini — high quality; gpt-4o — experimental; gpt-3.5-turbo — cheaper and faster."
+                      }
+                    >
+                      <option value="gpt-4.1-mini">
+                        gpt-4.1-mini (default)
+                      </option>
+                      <option value="gpt-4o">gpt-4o</option>
+                      <option value="gpt-4o-mini">gpt-4o-mini</option>
+                      <option value="gpt-4o-realtime-preview">
+                        gpt-4o-realtime-preview
+                      </option>
+                      <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div className="api-key-controls">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => setShowOpenaiKey((s) => !s)}
+                    aria-pressed={showOpenaiKey}
+                  >
+                    {showOpenaiKey ? "Hide" : "Show"}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => {
+                      setOpenaiKey("");
+                      setShowOpenaiKey(false);
+                    }}
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 8 }}>
+                <small className="hint">
+                  The key stays in memory for this session only and is not saved
+                  to disk.
+                </small>
+              </div>
+            </label>
+          </div>
+        </section>
 
         <form onSubmit={handleGenerate} className="form-grid">
           <section className="panel">
@@ -598,8 +708,8 @@ function App() {
           <button
             type="button"
             className="primary-button"
-            onClick={async (e) => {
-              await handleGenerate(e as unknown as React.FormEvent);
+            onClick={async () => {
+              await handleGenerate();
             }}
             disabled={isGenerating}
           >
@@ -607,11 +717,7 @@ function App() {
           </button>
         </div>
 
-        {error && (
-          <div className="error-banner">
-            <strong>Oops.</strong> {error}
-          </div>
-        )}
+        {/* error banner moved above the form */}
 
         {result && (
           <section className="panel result-panel">

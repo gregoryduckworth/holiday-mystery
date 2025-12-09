@@ -1,13 +1,18 @@
 import OpenAI from "openai";
 
-export const createOpenAIClient = () => {
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+/**
+ * Create an OpenAI client using a runtime key if provided, otherwise fall back
+ * to VITE_OPENAI_API_KEY from the environment. The key is not persisted.
+ */
+export const createOpenAIClient = (apiKey?: string) => {
+  const key =
+    apiKey || (import.meta.env.VITE_OPENAI_API_KEY as string | undefined);
 
-  if (!apiKey) {
+  if (!key) {
     throw new Error(
-      "Missing VITE_OPENAI_API_KEY. Add it to a .env.local file in the project root."
+      "Missing OpenAI API key. Provide a runtime key or set VITE_OPENAI_API_KEY."
     );
   }
 
-  return new OpenAI({ apiKey, dangerouslyAllowBrowser: true });
+  return new OpenAI({ apiKey: key, dangerouslyAllowBrowser: true });
 };

@@ -400,6 +400,137 @@ textarea {
   text-decoration: none;
 }
 
+/* Compact inline row where API key input and model select sit side-by-side */
+.api-key-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  flex-wrap: nowrap; /* prefer single-line layout */
+}
+
+.api-key-controls {
+  display: flex;
+  gap: 8px;
+  margin-left: auto; /* push controls to the right */
+}
+
+.api-key-status-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.api-key-input {
+  flex: 1 1 auto;
+  min-width: 200px;
+}
+.model-row {
+  flex: 0 1 auto; /* allow natural width */
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+@media (max-width: 700px) {
+  .api-key-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .api-key-controls {
+    justify-content: flex-start;
+  }
+}
+
+.model-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.model-row select {
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: rgba(10, 12, 18, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.06);
+  color: #e6eef8;
+}
+
+.token-estimate {
+  font-size: 0.9rem;
+  color: #cbd5e1;
+  margin-left: 6px;
+}
+
+.token-badge {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.12);
+  color: #e0e7ff;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.api-key-status.pill {
+  background: rgba(255, 255, 255, 0.04);
+  color: #cbd5e1;
+  padding: 6px 12px;
+  border-radius: 999px;
+}
+
+@media (max-width: 700px) {
+  .api-key-panel {
+    padding: 10px;
+  }
+  .api-key-input input[type="password"],
+  .api-key-input input[type="text"] {
+    min-width: 140px;
+  }
+  .model-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* Compact variant: reduce overall height for the API key panel */
+.api-key-panel {
+  padding-top: 0.6rem;
+  padding-bottom: 0.6rem;
+  margin-bottom: 1rem;
+}
+.api-key-panel .panel-header-row h2 {
+  font-size: 1rem;
+  margin-bottom: 0.25rem;
+}
+.api-key-panel .api-key-body .hint {
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+}
+.api-key-actions input[type="password"],
+.api-key-actions input[type="text"] {
+  padding: 6px 8px;
+  min-width: 200px;
+  font-size: 0.95rem;
+}
+.api-key-actions .secondary-button {
+  padding: 6px 10px;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 700px) {
+  .api-key-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .api-key-actions input[type="password"],
+  .api-key-actions input[type="text"] {
+    min-width: 100%;
+  }
+}
+
 .download-link:hover {
   text-decoration: underline;
 }

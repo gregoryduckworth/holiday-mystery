@@ -7,9 +7,15 @@ import type { MysteryConfig, MysteryScriptResult } from "./types";
 // has chosen to be explicitly available to the generator as location prompts.
 export async function generateMysteryScript(
   config: MysteryConfig,
-  selectedPOIs?: Array<{ name: string; type?: string; distanceMeters?: number }>
+  selectedPOIs?: Array<{
+    name: string;
+    type?: string;
+    distanceMeters?: number;
+  }>,
+  apiKey?: string,
+  model?: string
 ): Promise<MysteryScriptResult> {
-  const client = createOpenAIClient();
+  const client = createOpenAIClient(apiKey);
 
   const holidayLabel =
     config.holiday === "Other" && config.customHoliday
@@ -221,7 +227,7 @@ IMPORTANT:
 - Escape all newlines inside strings as \\n.`;
 
   const response = await client.responses.create({
-    model: "gpt-4.1-mini",
+    model: model || "gpt-4.1-mini",
     input: [
       { role: "system", content: system },
       { role: "user", content: userPrompt },
@@ -287,4 +293,51 @@ IMPORTANT:
     ...baseResult,
     characters: remappedCharacters,
   };
+}
+
+// Rough token estimate helper. Uses a simple heuristic: ~1 token per 4 characters
+// of input text. This estimates only the input (system + user prompt) tokens.
+export function estimatePromptTokenCount(
+  config: MysteryConfig,
+  selectedPOIs?: Array<{ name: string; type?: string; distanceMeters?: number }>
+): number {
+  const holidayLabel =
+    config.holiday === "Other" && config.customHoliday
+      ? config.customHoliday
+      : config.holiday;
+
+  const playersDescription = config.players
+    .map(
+      (p, index) =>
+        `- Player ${index + 1}: age group ${p.age || "unspecified"}, sex ${
+          p.sex || "unspecified"
+        }.`
+    )
+    .join("\n");
+
+  const locationHint = config.location
+    ? `Location for the story setting: ${config.location}`
+    : "No specific location provided.";
+
+  const wikiLocationNote = config.location
+    ? `Location note (wiki): ${config.location}`
+    : "";
+
+  const pois = (selectedPOIs || [])
+    .slice(0, 6)
+    .map((p) => `${p.name}${p.type ? ` (${p.type})` : ""}`)
+    .join("; ");
+
+  const localEnrichmentNote = pois ? `Nearby places: ${pois}` : "";
+
+  const userPrompt = `Holiday: ${holidayLabel}\nPlayers:\n${playersDescription}\n${locationHint}\n${wikiLocationNote}\n${localEnrichmentNote}\nNotes:\n${
+    config.settingNotes || ""
+  }`;
+
+  const system =
+    "You are an expert writer of fun mystery party games. Use short sentences, easy words, and keep content family-friendly.";
+
+  const combined = system + "\n" + userPrompt;
+  const approxTokens = Math.max(1, Math.ceil(combined.length / 4));
+  return approxTokens;
 }
