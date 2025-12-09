@@ -334,7 +334,7 @@ function App() {
             {isGenerating ? "Generating…" : "Generate holiday mystery"}
           </button>
           {!openaiKey && !envKeyPresent && (
-            <div className="hint" style={{ marginTop: 8 }}>
+            <div className="hint" style={{ marginTop: 8, marginLeft: 8 }}>
               Paste a runtime key above or set <code>VITE_OPENAI_API_KEY</code>{" "}
               in <code>.env.local</code> to enable generation.
             </div>
