@@ -5,6 +5,7 @@ import type {
   Player,
   CharacterScript,
   LocalEnrichment,
+  InspectorSegment,
 } from "./types";
 import { HolidayOptions } from "./types";
 import jsPDF from "jspdf";
@@ -134,6 +135,40 @@ function App() {
       .replace(/[^a-z0-9]+/g, "-");
 
     doc.save(`${safeName}-script.pdf`);
+  };
+
+  const buildInspectorPdf = (segments: InspectorSegment[]): void => {
+    const doc = new jsPDF();
+    const marginLeft = 14;
+    let cursorY = 16;
+
+    const addWrappedText = (text: string, options?: { bold?: boolean }) => {
+      const maxWidth = 180;
+      doc.setFont("helvetica", options?.bold ? "bold" : "normal");
+      const lines = doc.splitTextToSize(text, maxWidth) as string[];
+      lines.forEach((line) => {
+        if (cursorY > 280) {
+          doc.addPage();
+          cursorY = 16;
+        }
+        doc.text(line, marginLeft, cursorY);
+        cursorY += 6;
+      });
+      cursorY += 2;
+    };
+
+    doc.setFontSize(18);
+    addWrappedText(`Inspector / Police inspector segments`, { bold: true });
+    doc.setFontSize(12);
+    addWrappedText("(Contains answers — reveal only to the game master)");
+
+    segments.forEach((seg) => {
+      addWrappedText(`Round ${seg.round}: ${seg.title}`, { bold: true });
+      addWrappedText(seg.description || "");
+      cursorY += 4;
+    });
+
+    doc.save(`inspector.pdf`);
   };
 
   const handleGenerate = async (e?: React.FormEvent) => {
@@ -727,19 +762,32 @@ function App() {
             <pre className="mono-block">{result.howToPlay}</pre>
 
             <h3>Inspector / police inspector segments</h3>
-            <div className="inspector-grid">
-              {result.inspectorSegments.map((seg) => (
-                <div
-                  key={`${seg.round}-${seg.title}`}
-                  className="inspector-card"
+            <details>
+              <summary>Show inspector answers (GM only)</summary>
+              <div style={{ marginTop: 8, marginBottom: 12 }}>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => buildInspectorPdf(result.inspectorSegments)}
                 >
-                  <h4>
-                    Round {seg.round}: {seg.title}
-                  </h4>
-                  <p>{seg.description}</p>
-                </div>
-              ))}
-            </div>
+                  Download inspector (PDF)
+                </button>
+              </div>
+
+              <div className="inspector-grid">
+                {result.inspectorSegments.map((seg) => (
+                  <div
+                    key={`${seg.round}-${seg.title}`}
+                    className="inspector-card"
+                  >
+                    <h4>
+                      Round {seg.round}: {seg.title}
+                    </h4>
+                    <p>{seg.description}</p>
+                  </div>
+                ))}
+              </div>
+            </details>
 
             <h3>Characters &amp; costumes</h3>
             <div className="characters-grid">
