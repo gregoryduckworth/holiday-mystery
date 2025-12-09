@@ -1,4 +1,4 @@
-import "./App.css";
+import "./index.css";
 import { useState } from "react";
 import type {
   MysteryConfig,
@@ -373,7 +373,7 @@ function App() {
             </label>
           </section>
 
-          <section className="panel">
+          <section className="panel players-panel">
             <div className="panel-header-row">
               <h2>Players &amp; characters</h2>
               <button
@@ -385,91 +385,84 @@ function App() {
               </button>
             </div>
 
-            <p className="hint">
-              Add everyone who will play. The generator will tailor character
-              roles, costumes, and personalities to them.
-            </p>
+            <div className="panel-body">
+              <p className="hint">
+                Add everyone who will play. The generator will tailor character
+                roles, costumes, and personalities to them.
+              </p>
 
-            <div className="players-grid">
-              {config.players.map((player, index) => (
-                <div key={player.id} className="player-card">
-                  <div className="player-card-header">
-                    <h3>Player {index + 1}</h3>
-                    {config.players.length > 2 && (
-                      <button
-                        type="button"
-                        className="icon-button"
-                        onClick={() => removePlayer(player.id)}
-                        aria-label={`Remove player ${index + 1}`}
+              <div className="players-grid">
+                {config.players.map((player, index) => (
+                  <div key={player.id} className="player-card">
+                    <div className="player-card-header">
+                      <h3>Player {index + 1}</h3>
+                      {config.players.length > 2 && (
+                        <button
+                          type="button"
+                          className="icon-button"
+                          onClick={() => removePlayer(player.id)}
+                          aria-label={`Remove player ${index + 1}`}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+
+                    <label className="field">
+                      <span>Name</span>
+                      <input
+                        type="text"
+                        value={player.name}
+                        onChange={(e) =>
+                          updatePlayer(player.id, "name", e.target.value)
+                        }
+                      />
+                    </label>
+
+                    <label className="field">
+                      <span>Age group</span>
+                      <select
+                        value={player.age}
+                        onChange={(e) =>
+                          updatePlayer(
+                            player.id,
+                            "age",
+                            e.target.value as Player["age"]
+                          )
+                        }
                       >
-                        ×
-                      </button>
-                    )}
+                        <option value="adult">Adult</option>
+                        <option value="child">Child</option>
+                      </select>
+                    </label>
+
+                    <label className="field">
+                      <span>Sex</span>
+                      <select
+                        value={player.sex}
+                        onChange={(e) =>
+                          updatePlayer(
+                            player.id,
+                            "sex",
+                            e.target.value as Player["sex"]
+                          )
+                        }
+                      >
+                        <option value="M">M</option>
+                        <option value="F">F</option>
+                        <option value="Prefer not to say">
+                          Prefer not to say
+                        </option>
+                      </select>
+                    </label>
                   </div>
-
-                  <label className="field">
-                    <span>Name</span>
-                    <input
-                      type="text"
-                      value={player.name}
-                      onChange={(e) =>
-                        updatePlayer(player.id, "name", e.target.value)
-                      }
-                    />
-                  </label>
-
-                  <label className="field">
-                    <span>Age group</span>
-                    <select
-                      value={player.age}
-                      onChange={(e) =>
-                        updatePlayer(
-                          player.id,
-                          "age",
-                          e.target.value as Player["age"]
-                        )
-                      }
-                    >
-                      <option value="adult">Adult</option>
-                      <option value="child">Child</option>
-                    </select>
-                  </label>
-
-                  <label className="field">
-                    <span>Sex</span>
-                    <select
-                      value={player.sex}
-                      onChange={(e) =>
-                        updatePlayer(
-                          player.id,
-                          "sex",
-                          e.target.value as Player["sex"]
-                        )
-                      }
-                    >
-                      <option value="M">M</option>
-                      <option value="F">F</option>
-                      <option value="Prefer not to say">
-                        Prefer not to say
-                      </option>
-                    </select>
-                  </label>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
 
-            <footer className="form-footer">
-              <button
-                type="submit"
-                className="primary-button"
-                disabled={isGenerating}
-              >
-                {isGenerating ? "Generating…" : "Generate holiday mystery"}
-              </button>
-            </footer>
+            {/* footer intentionally left empty; generate button moved below location preview */}
           </section>
         </form>
-
         <section className="panel">
           <h2>Location preview</h2>
           <p className="hint">
@@ -599,6 +592,20 @@ function App() {
             </div>
           </div>
         </section>
+
+        {/* Global generate button moved here so it remains under the left column previews */}
+        <div className="global-generate-wrapper">
+          <button
+            type="button"
+            className="primary-button"
+            onClick={async (e) => {
+              await handleGenerate(e as unknown as React.FormEvent);
+            }}
+            disabled={isGenerating}
+          >
+            {isGenerating ? "Generating…" : "Generate holiday mystery"}
+          </button>
+        </div>
 
         {error && (
           <div className="error-banner">
