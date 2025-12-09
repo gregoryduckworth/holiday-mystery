@@ -7,15 +7,9 @@ import type {
   LocalEnrichment,
   InspectorSegment,
 } from "./types";
-// HolidayOptions now used inside EventSettingsPanel
-// PDF generation is handled by shared helpers in lib/pdf
-import {
-  generateMysteryScript,
-  estimatePromptTokenCount,
-} from "./generateMystery";
+import { generateMysteryScript } from "./generateMystery";
 import { fetchWikiSummaryByTitle, type WikiSummary } from "./lib/wiki";
 import getLocalEnrichment from "./lib/localEnrich";
-// LocationAutocomplete used inside EventSettingsPanel
 import {
   buildCharacterScriptPdf as buildCharacterScriptPdfShared,
   buildInspectorPdf as buildInspectorPdfShared,
