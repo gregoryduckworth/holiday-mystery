@@ -1,9 +1,13 @@
 import { createOpenAIClient } from "./openaiClient";
 import { fetchWikiSummaryByTitle } from "./lib/wiki";
+import getLocalEnrichment from "./lib/localEnrich";
 import type { MysteryConfig, MysteryScriptResult } from "./types";
 
+// selectedPOIs: optional array of POI names (with optional meta) that the user
+// has chosen to be explicitly available to the generator as location prompts.
 export async function generateMysteryScript(
-  config: MysteryConfig
+  config: MysteryConfig,
+  selectedPOIs?: Array<{ name: string; type?: string; distanceMeters?: number }>
 ): Promise<MysteryScriptResult> {
   const client = createOpenAIClient();
 
@@ -47,6 +51,71 @@ Location usage rules:
     }
   }
 
+  // Try to enrich with nearby POIs / weather from OpenStreetMap / Open-Meteo when coordinates are available.
+  let localEnrichmentNote = "";
+  let poiUsageInstructions = "";
+  try {
+    const lat = config.locationCoords?.lat;
+    const lon = config.locationCoords?.lon;
+    if (typeof lat === "number" && typeof lon === "number") {
+      try {
+        const le = await getLocalEnrichment({
+          lat,
+          lon,
+          name: config.location,
+        });
+        try {
+          /* intentionally not logging local enrichment results */
+        } catch {
+          /* ignore */
+        }
+        if (le) {
+          const poiList = (le.topPOIs || [])
+            .slice(0, 6)
+            .map((p) => `${p.name} (${p.type})`)
+            .join("; ");
+          const weather = le.currentWeather?.tempC
+            ? `Weather around ${le.currentWeather.tempC}°C.`
+            : "";
+          const pop = le.population
+            ? `Population approx ${le.population}.`
+            : "";
+          const admin = (le.admin || []).join(", ");
+          const adminNote = admin ? `Located in ${admin}.` : "";
+          localEnrichmentNote = `\n\nLocal context (from OSM/Open-Meteo): ${adminNote} ${pop} ${weather} Nearby notable places: ${poiList}.`;
+          // If we have POIs, add explicit instructions asking the model to use some as clue locations
+          const pois = (le.topPOIs || []).slice(0, 6);
+          if (pois.length > 0) {
+            const poiLines = pois
+              .map(
+                (p) =>
+                  `${p.name} (${p.type})${
+                    p.distanceMeters ? `, ${p.distanceMeters}m` : ""
+                  }`
+              )
+              .join("; ");
+            // If the caller supplied explicit selected POIs, add a short note asking
+            // the model to prioritise them. This helps designers pick which nearby
+            // places should be used as clue locations.
+            let selectedNote = "";
+            if (Array.isArray(selectedPOIs) && selectedPOIs.length > 0) {
+              const selList = selectedPOIs
+                .map((s) => `${s.name}${s.type ? ` (${s.type})` : ""}`)
+                .join("; ");
+              selectedNote = `\n- Prioritise these selected places as clue locations: ${selList}.`;
+            }
+
+            poiUsageInstructions = `\n\nLocal POI usage rules:\n- Prefer using 2–4 of the nearby places as specific clue locations (use their names exactly as listed: ${poiLines}).${selectedNote}\n- Place physical clues, props, or important conversation prompts at those POIs (for example: "a ribbon found near Old Mill Pub", "a torn program from the Winter Fair at Market Square").\n- When mentioning a POI, optionally include a brief distance (e.g., ~200m) to ground the scene, but do NOT include real addresses or precise GPS coordinates.\n- Ensure at least one round includes dialog or an inspector note that directs players to examine or discuss a named POI.\n`;
+          }
+        }
+      } catch (err) {
+        console.warn("[generateMysteryScript] Local enrichment failed:", err);
+      }
+    }
+  } catch (err) {
+    console.warn("[generateMysteryScript] Local enrichment error:", err);
+  }
+
   const system =
     "You are an expert writer of fun mystery party games. " +
     "You always create clear scripts that can be read aloud by children and adults. " +
@@ -62,7 +131,10 @@ Players (create one fictional character per listed player):
 ${playersDescription}
 
 ${locationHint}
+
 ${wikiLocationNote}
+${localEnrichmentNote}
+${poiUsageInstructions}
 
 Additional notes from the organiser:
 ${config.settingNotes || "None provided."}
@@ -156,7 +228,7 @@ IMPORTANT:
     ],
   });
 
-  console.log("[generateMysteryScript] Raw response:", response);
+  // raw response intentionally not logged
 
   let rawText: string | null =
     (response as unknown as { output_text?: string | null }).output_text ??
@@ -190,7 +262,7 @@ IMPORTANT:
     throw new Error("OpenAI did not return any text output to parse.");
   }
 
-  console.log("[generateMysteryScript] Raw text output:", rawText);
+  // raw text output intentionally not logged
 
   let parsed: unknown;
   try {

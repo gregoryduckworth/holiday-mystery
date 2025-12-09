@@ -19,12 +19,39 @@ export interface Player {
 export interface MysteryConfig {
   holiday: HolidayOption;
   customHoliday: string;
+  locationCoords?: { lat: number; lon: number };
   location: string;
   enableWikiEnrichment?: boolean;
   rounds: number;
   settingNotes: string;
   tone: "light" | "mixed" | "serious";
   players: Player[];
+}
+
+export interface LocalEnrichment {
+  canonicalName?: string;
+  country?: string;
+  admin?: string[];
+  population?: number | null;
+  timezone?: string | null;
+  elevationMeters?: number | null;
+  coordinates?: { lat: number; lon: number } | null;
+  topPOIs?: Array<{ name: string; type: string; distanceMeters?: number }>;
+  primaryPOI?: {
+    name: string;
+    type: string;
+    distanceMeters?: number;
+    wikidata?: string;
+    wikipedia?: string;
+  } | null;
+  notableFacts?: string[];
+  currentWeather?: {
+    tempC?: number;
+    condition?: string;
+    sunrise?: string;
+    sunset?: string;
+  } | null;
+  wikiTitle?: string | null;
 }
 
 export interface CharacterScript {

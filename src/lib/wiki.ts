@@ -72,8 +72,8 @@ export async function resolveTownToWikiSummary(
       cacheSet(key, exact);
       return exact;
     }
-  } catch (e: unknown) {
-    console.debug("exact summary lookup failed", e);
+  } catch {
+    // exact lookup failed, continue to search fallbacks
   }
 
   // 2) search via action=query
@@ -96,13 +96,13 @@ export async function resolveTownToWikiSummary(
             cacheSet(key, summ);
             return summ;
           }
-        } catch (e: unknown) {
-          console.debug("search fallback failed", e);
+        } catch {
+          // search fallback failed, continue
         }
       }
     }
-  } catch (e: unknown) {
-    console.debug("search request failed", e);
+  } catch {
+    // search request failed, continue to geosearch fallback
   }
 
   // 3) geosearch near coords (if available)
@@ -137,13 +137,13 @@ export async function resolveTownToWikiSummary(
               cacheSet(key, summ);
               return summ;
             }
-          } catch (e: unknown) {
-            console.debug("geosearch candidate summary failed", e);
+          } catch {
+            // candidate summary failed, continue
           }
         }
       }
-    } catch (e: unknown) {
-      console.debug("geosearch request failed", e);
+    } catch {
+      // geosearch request failed, no more fallbacks
     }
   }
 

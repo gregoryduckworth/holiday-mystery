@@ -3,13 +3,14 @@ import { useState } from "react";
 import type {
   MysteryConfig,
   Player,
-  HolidayOption,
   CharacterScript,
+  LocalEnrichment,
 } from "./types";
 import { HolidayOptions } from "./types";
 import jsPDF from "jspdf";
 import { generateMysteryScript } from "./generateMystery";
 import { fetchWikiSummaryByTitle, type WikiSummary } from "./lib/wiki";
+import getLocalEnrichment from "./lib/localEnrich";
 import LocationAutocomplete from "./components/LocationAutocomplete";
 
 const defaultConfig: MysteryConfig = {
@@ -37,6 +38,14 @@ function App() {
   const [wikiPreview, setWikiPreview] = useState<WikiSummary | null>(null);
   const [wikiLoading, setWikiLoading] = useState(false);
   const [wikiError, setWikiError] = useState<string | null>(null);
+  const [localPreview, setLocalPreview] = useState<LocalEnrichment | null>(
+    null
+  );
+  const [localLoading, setLocalLoading] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [selectedPOIs, setSelectedPOIs] = useState<
+    Array<{ name: string; type?: string; distanceMeters?: number }>
+  >([]);
 
   const updatePlayer = (id: number, field: keyof Player, value: string) => {
     setConfig((prev) => ({
@@ -129,7 +138,7 @@ function App() {
     setResult(null);
 
     try {
-      const script = await generateMysteryScript(config);
+      const script = await generateMysteryScript(config, selectedPOIs);
       setResult(script);
     } catch (err) {
       console.error(err);
@@ -164,6 +173,26 @@ function App() {
     }
   };
 
+  const fetchLocalPreview = async (lat: number, lon: number, name?: string) => {
+    setLocalLoading(true);
+    setLocalError(null);
+    try {
+      const data = await getLocalEnrichment({ lat, lon, name });
+      setLocalPreview(data);
+      // Initialize selectedPOIs to none selected but keep synchrony so the
+      // checkbox UI and the places list appear at the same time. We do not
+      // auto-select items — just ensure the array is reset when new local data
+      // arrives, preventing a flicker where the list shows but checkboxes lag.
+      setSelectedPOIs([]);
+    } catch (err) {
+      console.warn("Local preview failed", err);
+      setLocalError(err instanceof Error ? err.message : String(err));
+      setLocalPreview(null);
+    } finally {
+      setLocalLoading(false);
+    }
+  };
+
   return (
     <div className="app-root">
       {isGenerating && (
@@ -174,18 +203,21 @@ function App() {
           </div>
         </div>
       )}
-      <header className="app-header">
-        <h1>Holiday Mystery Generator</h1>
-        <p>
-          Configure your cast, choose a holiday, and generate a tailored mystery
-          with scripted rounds and an in-character inspector.
-        </p>
-      </header>
 
-      <main>
-        <form className="config-form" onSubmit={handleGenerate}>
+      <main className="app-main">
+        <header className="app-header">
+          <h1>Holiday Mystery Generator</h1>
+          <p>
+            Configure your cast, choose a holiday, and generate a tailored
+            mystery with scripted rounds and an in-character inspector.
+          </p>
+        </header>
+
+        <form onSubmit={handleGenerate} className="form-grid">
           <section className="panel">
-            <h2>Scenario basics</h2>
+            <div className="panel-header-row">
+              <h2>Event settings</h2>
+            </div>
 
             <label className="field">
               <span>Holiday</span>
@@ -194,7 +226,7 @@ function App() {
                 onChange={(e) =>
                   setConfig((prev) => ({
                     ...prev,
-                    holiday: e.target.value as HolidayOption,
+                    holiday: e.target.value as MysteryConfig["holiday"],
                   }))
                 }
               >
@@ -244,13 +276,9 @@ function App() {
               <LocationAutocomplete
                 value={config.location}
                 onChange={(v) =>
-                  setConfig((prev) => ({
-                    ...prev,
-                    location: v,
-                  }))
+                  setConfig((prev) => ({ ...prev, location: v }))
                 }
                 onSelect={(place) => {
-                  // derive a concise town name from the Nominatim response
                   const addr = place.address || ({} as Record<string, unknown>);
                   const townName =
                     (addr["town"] as string | undefined) ||
@@ -262,15 +290,23 @@ function App() {
                     (addr["state"] as string | undefined) ||
                     (place.display_name || "").split(",")[0];
 
-                  setConfig((prev) => ({ ...prev, location: townName }));
+                  const lat = place.lat ? Number(place.lat) : undefined;
+                  const lon = place.lon ? Number(place.lon) : undefined;
+                  setConfig((prev) => ({
+                    ...prev,
+                    location: townName,
+                    locationCoords:
+                      lat && lon ? { lat, lon } : prev.locationCoords,
+                  }));
                   fetchWikiPreview(townName);
+                  if (lat && lon) fetchLocalPreview(lat, lon, townName);
                 }}
                 placeholder="e.g. Edinburgh, Scotland or a snowy mountain village"
-                nominatimEmail="dev@local" // optional contact
+                nominatimEmail="dev@local"
               />
               <small className="hint">
-                Please don&apos;t include your full address just a city, region,
-                or type of place is perfect.
+                Please don&apos;t include your full address — just a city,
+                region, or type of place.
               </small>
             </label>
 
@@ -326,6 +362,14 @@ function App() {
                 the provided location and include a short note in the generated
                 prompt. No API keys are required.
               </small>
+              {/* Show disabled notice inline next to the checkbox when off */}
+              {!config.enableWikiEnrichment && (
+                <div style={{ marginTop: 6 }}>
+                  <small className="hint">
+                    Wikipedia enrichment is disabled.
+                  </small>
+                </div>
+              )}
             </label>
           </section>
 
@@ -340,6 +384,7 @@ function App() {
                 + Add player
               </button>
             </div>
+
             <p className="hint">
               Add everyone who will play. The generator will tailor character
               roles, costumes, and personalities to them.
@@ -412,17 +457,17 @@ function App() {
                 </div>
               ))}
             </div>
-          </section>
 
-          <footer className="form-footer">
-            <button
-              type="submit"
-              className="primary-button"
-              disabled={isGenerating}
-            >
-              {isGenerating ? "Generating…" : "Generate holiday mystery"}
-            </button>
-          </footer>
+            <footer className="form-footer">
+              <button
+                type="submit"
+                className="primary-button"
+                disabled={isGenerating}
+              >
+                {isGenerating ? "Generating…" : "Generate holiday mystery"}
+              </button>
+            </footer>
+          </section>
         </form>
 
         <section className="panel">
@@ -430,10 +475,16 @@ function App() {
           <p className="hint">
             Preview the Wikipedia summary for the location.
           </p>
+
           <div className="wiki-preview">
             {config.enableWikiEnrichment ? (
               wikiLoading ? (
-                <p>Loading Wikipedia summary…</p>
+                <div className="wiki-loader" role="status" aria-live="polite">
+                  <div className="wiki-spinner" aria-hidden="true" />
+                  <div className="wiki-loader-text">
+                    Loading Wikipedia summary…
+                  </div>
+                </div>
               ) : wikiError ? (
                 <div className="error-banner">{wikiError}</div>
               ) : wikiPreview ? (
@@ -449,6 +500,7 @@ function App() {
                       Read on Wikipedia
                     </a>
                   )}
+
                   <div>
                     <button
                       type="button"
@@ -460,23 +512,91 @@ function App() {
                   </div>
                 </div>
               ) : (
-                <div>
-                  <p className="hint">
-                    No preview available. Enter a location and click "Refresh
-                    preview".
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => fetchWikiPreview()}
-                    className="secondary-button"
-                  >
-                    Refresh preview
-                  </button>
-                </div>
+                <p className="hint">No Wikipedia summary available.</p>
               )
-            ) : (
-              <p className="hint">Wikipedia enrichment is disabled.</p>
-            )}
+            ) : null}
+
+            <div className="local-preview" style={{ marginTop: 12 }}>
+              {localLoading ? (
+                <div className="wiki-loader" role="status" aria-live="polite">
+                  <div className="wiki-spinner" aria-hidden="true" />
+                  <div className="wiki-loader-text">Loading local data…</div>
+                </div>
+              ) : localError ? (
+                <div className="error-banner">{localError}</div>
+              ) : localPreview ? (
+                <div>
+                  <h4>Local context</h4>
+                  {localPreview.currentWeather && (
+                    <p className="hint">
+                      Weather: {localPreview.currentWeather.tempC}°C —{" "}
+                      {localPreview.currentWeather.condition}
+                    </p>
+                  )}
+                  {localPreview.topPOIs && localPreview.topPOIs.length > 0 && (
+                    <div>
+                      <strong>Nearby places:</strong>
+                      <ul>
+                        {localPreview.topPOIs.map((p, i) => {
+                          const checked = selectedPOIs.some(
+                            (s) => s.name === p.name && s.type === p.type
+                          );
+                          return (
+                            <li
+                              key={i}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                aria-label={`Select ${p.name} as a clue location`}
+                                checked={checked}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedPOIs((prev) => [
+                                      ...prev,
+                                      {
+                                        name: p.name,
+                                        type: p.type,
+                                        distanceMeters: p.distanceMeters,
+                                      },
+                                    ]);
+                                  } else {
+                                    setSelectedPOIs((prev) =>
+                                      prev.filter(
+                                        (s) =>
+                                          !(
+                                            s.name === p.name &&
+                                            s.type === p.type
+                                          )
+                                      )
+                                    );
+                                  }
+                                }}
+                              />
+                              <span>
+                                {p.name} ({p.type}) • {p.distanceMeters}m
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  )}
+
+                  <p className="hint" style={{ fontSize: 12 }}>
+                    Data courtesy of OpenStreetMap and Open-Meteo. See{" "}
+                    <a href="https://www.openstreetmap.org/">OSM</a> and{" "}
+                    <a href="https://open-meteo.com/">Open-Meteo</a>.
+                  </p>
+                </div>
+              ) : (
+                <p className="hint">No local data available yet.</p>
+              )}
+            </div>
           </div>
         </section>
 

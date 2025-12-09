@@ -170,29 +170,38 @@ export default function LocationAutocomplete({
 
   return (
     <div className="location-autocomplete" style={{ position: "relative" }}>
-      <input
-        type="text"
-        aria-autocomplete="list"
-        aria-expanded={open}
-        aria-activedescendant={
-          open && activeIndexRef.current >= 0
-            ? `loc-sug-${activeIndexRef.current}`
-            : undefined
-        }
-        value={query}
-        onChange={(e) => handleInput(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder={placeholder}
-        onFocus={() => {
-          if (suggestions.length > 0) setOpen(true);
-        }}
-        onBlur={() => {
-          setTimeout(() => setOpen(false), 150);
-        }}
-      />
+      <div className="input-row">
+        <input
+          type="text"
+          aria-autocomplete="list"
+          aria-expanded={open}
+          aria-activedescendant={
+            open && activeIndexRef.current >= 0
+              ? `loc-sug-${activeIndexRef.current}`
+              : undefined
+          }
+          value={query}
+          onChange={(e) => handleInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          onFocus={() => {
+            if (suggestions.length > 0) setOpen(true);
+          }}
+          onBlur={() => {
+            setTimeout(() => setOpen(false), 150);
+          }}
+        />
 
-      {loading && <div className="hint">Loading…</div>}
-      {error && <div className="error-banner">{error}</div>}
+        <div className="input-status" aria-hidden>
+          {loading && (
+            <div className="status-bubble">
+              <span className="small-spinner" aria-hidden />
+              <span style={{ marginLeft: 8 }}>Searching…</span>
+            </div>
+          )}
+          {error && <div className="error-banner">{error}</div>}
+        </div>
+      </div>
 
       {open && suggestions.length > 0 && (
         <ul

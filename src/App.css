@@ -42,3 +42,57 @@
 }
 
 /* Keep the rest of the app styles minimal here — existing styles live elsewhere */
+
+/* Inline wiki loader inside the preview panel */
+.wiki-loader {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.wiki-spinner {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.15);
+  border-top-color: #fff;
+  animation: spin 0.9s linear infinite;
+}
+
+.wiki-loader-text {
+  font-size: 14px;
+  color: #fff;
+}
+
+/* Autocomplete input row - place status to the right */
+.input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.input-row input[type="text"] {
+  flex: 1 1 auto;
+}
+.input-status {
+  min-width: 120px;
+  text-align: right;
+}
+.status-bubble {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.small-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-top-color: #fff;
+  animation: spin 0.9s linear infinite;
+}
