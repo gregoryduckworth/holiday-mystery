@@ -1,5 +1,5 @@
 import "./index.css";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import type {
   MysteryConfig,
   Player,
@@ -8,10 +8,7 @@ import type {
 } from "./types";
 import { HolidayOptions } from "./types";
 import jsPDF from "jspdf";
-import {
-  generateMysteryScript,
-  estimatePromptTokenCount,
-} from "./generateMystery";
+import { generateMysteryScript } from "./generateMystery";
 import { fetchWikiSummaryByTitle, type WikiSummary } from "./lib/wiki";
 import getLocalEnrichment from "./lib/localEnrich";
 import LocationAutocomplete from "./components/LocationAutocomplete";
@@ -54,9 +51,6 @@ function App() {
   const [showOpenaiKey, setShowOpenaiKey] = useState<boolean>(false);
   const [selectedModel, setSelectedModel] = useState<string>("gpt-4.1-mini");
   const envKeyPresent = Boolean(import.meta.env.VITE_OPENAI_API_KEY);
-  const tokenEstimate = useMemo(() => {
-    return estimatePromptTokenCount(config, selectedPOIs);
-  }, [config, selectedPOIs]);
 
   const updatePlayer = (id: number, field: keyof Player, value: string) => {
     setConfig((prev) => ({
