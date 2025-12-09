@@ -1,47 +1,46 @@
-name: Build and deploy to GitHub Pages
+name: Deploy
 
 on:
   push:
     branches: [main]
-  workflow_dispatch: {}
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
 
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
 jobs:
-  build-and-deploy:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v6
 
-      - name: Use Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
+      - name: Set up Node
+        uses: actions/setup-node@v6
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Build
-        env:
-          REPOSITORY_NAME: ${{ github.event.repository.name }}
-        run: |
-          # Set Vite base to repository name if present; fallback to '/'
-          if [ -n "${REPOSITORY_NAME}" ]; then
-            BASE_PATH="/${REPOSITORY_NAME}/"
-          else
-            BASE_PATH="/"
-          fi
-          echo "Building with base=${BASE_PATH}"
-          npm run build -- --base ${BASE_PATH}
+        run: npm run build
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: "./dist"
 
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
-          publish_branch: gh-pages
+        id: deployment
+        uses: actions/deploy-pages@v4
