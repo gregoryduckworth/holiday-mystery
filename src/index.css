@@ -198,6 +198,7 @@ main {
 
 input[type="text"],
 input[type="number"],
+input[type="password"],
 select,
 textarea {
   width: 100%;
@@ -448,6 +449,12 @@ textarea {
   align-items: center;
   gap: 12px;
   margin-top: 8px;
+}
+
+/* Ensure model row appears on its own line under the API key input */
+.api-key-body .model-row {
+  width: 100%;
+  flex: 1 1 100%;
 }
 
 .model-row select {

@@ -250,18 +250,42 @@ function App() {
             <label className="field">
               <span>Paste an OpenAI API key for this session</span>
 
-              <div style={{ width: "100%" }}>
-                <div className="api-key-input">
-                  <input
-                    type={showOpenaiKey ? "text" : "password"}
-                    value={openaiKey}
-                    onChange={(e) => setOpenaiKey(e.target.value)}
-                    placeholder="sk-... (not stored)"
-                    aria-label="OpenAI API key"
-                  />
+              <div className="api-key-body">
+                <div className="api-key-row">
+                  <div className="api-key-input">
+                    <input
+                      type={showOpenaiKey ? "text" : "password"}
+                      value={openaiKey}
+                      onChange={(e) => setOpenaiKey(e.target.value)}
+                      placeholder="sk-... (not stored)"
+                      aria-label="OpenAI API key"
+                    />
+                  </div>
+
+                  <div className="api-key-controls">
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => setShowOpenaiKey((s) => !s)}
+                      aria-pressed={showOpenaiKey}
+                    >
+                      {showOpenaiKey ? "Hide" : "Show"}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => {
+                        setOpenaiKey("");
+                        setShowOpenaiKey(false);
+                      }}
+                    >
+                      Clear
+                    </button>
+                  </div>
                 </div>
 
-                <div>
+                <div className="model-row">
                   <label className="field">
                     <span>Model</span>
                     <select
@@ -282,28 +306,6 @@ function App() {
                       <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
                     </select>
                   </label>
-                </div>
-
-                <div className="api-key-controls">
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={() => setShowOpenaiKey((s) => !s)}
-                    aria-pressed={showOpenaiKey}
-                  >
-                    {showOpenaiKey ? "Hide" : "Show"}
-                  </button>
-
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={() => {
-                      setOpenaiKey("");
-                      setShowOpenaiKey(false);
-                    }}
-                  >
-                    Clear
-                  </button>
                 </div>
               </div>
 
